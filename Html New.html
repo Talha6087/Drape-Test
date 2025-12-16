@@ -1,43 +1,1099 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Drape Coefficient – ImageJ Equivalent</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>Fabric Drape Coefficient</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<link rel="stylesheet" href="style.css">
-<script async src="https://docs.opencv.org/4.8.0/opencv.js"></script>
+  <!-- OpenCV.js CDN -->
+  <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady()"></script>
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg: #050816;
+      --card: #0f172a;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --radius-lg: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1e293b 0, #020617 55%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .app {
+      max-width: 900px;
+      margin: 0 auto 32px;
+      display: grid;
+      gap: 16px;
+    }
+
+    @media (min-width: 768px) {
+      .app {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+        align-items: start;
+      }
+    }
+
+    .panel {
+      background: linear-gradient(145deg, #020617 0, #020617 40%, #111827 100%);
+      border-radius: var(--radius-lg);
+      padding: 14px 14px 16px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+      gap: 8px;
+    }
+
+    .panel-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    .panel-tag {
+      font-size: 0.7rem;
+      color: var(--muted);
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 2px 8px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .field {
+      flex: 1 1 130px;
+      min-width: 0;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 7px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.45);
+    }
+
+    .field input[type="number"] {
+      -moz-appearance: textfield;
+    }
+    .field input::-webkit-outer-spin-button,
+    .field input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .chip-group {
+      display: inline-flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 3px 9px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      font-size: 0.7rem;
+      color: var(--muted);
+      cursor: pointer;
+      background: rgba(15, 23, 42, 0.7);
+      transition: all 0.16s ease-out;
+    }
+
+    .chip:hover {
+      border-color: var(--primary);
+      color: var(--text);
+    }
+
+    .chip.active {
+      border-color: var(--primary);
+      background: rgba(37, 99, 235, 0.12);
+      color: var(--text);
+    }
+
+    .btn {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, background 0.16s ease;
+    }
+
+    .btn-primary {
+      background: radial-gradient(circle at top left, #3b82f6 0, #1d4ed8 45%, #111827 100%);
+      color: white;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.45);
+    }
+
+    .btn-primary:hover {
+      background: radial-gradient(circle at top left, #60a5fa 0, #2563eb 40%, #020617 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 14px 35px rgba(37, 99, 235, 0.6);
+    }
+
+    .btn-ghost {
+      background: rgba(15, 23, 42, 0.8);
+      color: var(--text);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(30, 64, 175, 0.38);
+      border-color: var(--primary);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: #fecaca;
+      border: 1px solid rgba(239, 68, 68, 0.6);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    .btn span.icon {
+      font-size: 1.1rem;
+      line-height: 0;
+    }
+
+    .status {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 6px;
+      min-height: 16px;
+    }
+
+    .status strong {
+      color: var(--accent);
+    }
+
+    .status.error {
+      color: #fecaca;
+    }
+
+    .camera-shell {
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: #000;
+      position: relative;
+      aspect-ratio: 3 / 4;
+      max-height: 460px;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1); /* mirror for selfie-like view */
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .target-circle {
+      width: 86%;
+      max-width: 460px;
+      aspect-ratio: 1 / 1;
+      border-radius: 50%;
+      border: 2px dashed rgba(226, 232, 240, 0.8);
+      box-shadow:
+        0 0 0 999px rgba(15, 23, 42, 0.45),
+        0 0 0 1px rgba(15, 23, 42, 0.8);
+    }
+
+    .overlay-tip {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      color: rgba(226, 232, 240, 0.92);
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(10px);
+    }
+
+    .tab-switcher {
+      display: inline-flex;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      overflow: hidden;
+      background: rgba(15, 23, 42, 0.9);
+      margin-bottom: 8px;
+    }
+
+    .tab {
+      padding: 5px 10px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .tab.active {
+      background: radial-gradient(circle at top, #1d4ed8 0, #020617 80%);
+      color: #e5e7eb;
+    }
+
+    #uploadInput {
+      display: none;
+    }
+
+    .preview-shell {
+      position: relative;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: radial-gradient(circle at top left, #0b1120 0, #020617 60%);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 8px;
+    }
+
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .preview-header span.label {
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 0.7rem;
+    }
+
+    #canvas {
+      width: 100%;
+      max-height: 260px;
+      border-radius: 10px;
+      background: #020617;
+      border: 1px solid rgba(15, 23, 42, 0.9);
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .slider-row input[type="range"] {
+      flex: 1;
+    }
+
+    .result-badge {
+      margin-top: 10px;
+      border-radius: 12px;
+      padding: 8px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: radial-gradient(circle at left, rgba(34, 197, 94, 0.18) 0, rgba(15, 23, 42, 0.9) 55%);
+      border: 1px solid rgba(34, 197, 94, 0.45);
+      font-size: 0.86rem;
+    }
+
+    .result-main {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #bbf7d0;
+    }
+
+    .badge-chip {
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: var(--muted);
+    }
+
+    .history {
+      margin-top: 10px;
+      font-size: 0.8rem;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .history-list {
+      max-height: 180px;
+      overflow-y: auto;
+      border-radius: 10px;
+      border: 1px solid rgba(30, 64, 175, 0.35);
+      background: rgba(15, 23, 42, 0.8);
+    }
+
+    .history-item {
+      padding: 6px 8px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px solid rgba(30, 64, 175, 0.3);
+    }
+
+    .history-item:last-child {
+      border-bottom: none;
+    }
+
+    .history-item-main {
+      font-weight: 500;
+      color: #e5e7eb;
+    }
+
+    .history-item-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .badge-soft {
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      background: rgba(30, 64, 175, 0.35);
+      color: #bfdbfe;
+    }
+
+    .legend {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .dot-bg {
+      background: #f97316;
+    }
+
+    .dot-fg {
+      background: #22c55e;
+    }
+
+    .note {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+  </style>
 </head>
-
 <body>
-<div class="container">
+  <h1>Fabric Drape Coefficient</h1>
+  <p class="subtitle">Camera / image based web tool inspired by Cusick drape tester (shadow area method).</p>
 
-<h1>ImageJ-Equivalent Drape Analyzer</h1>
+  <div class="app">
+    <!-- LEFT: Capture & Preview -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Capture / Upload</div>
+          <div style="font-size:0.75rem;color:var(--muted);">
+            Keep the setup top‑view, sample centred and fully inside the circle.
+          </div>
+        </div>
+        <div class="panel-tag">Step 1</div>
+      </div>
 
-<input type="file" id="fileInput" accept="image/*">
+      <div style="margin-bottom:8px;">
+        <div class="tab-switcher">
+          <button id="tabCamera" class="tab active" type="button">
+            <span class="icon">📷</span>Camera
+          </button>
+          <button id="tabUpload" class="tab" type="button">
+            <span class="icon">🖼️</span>Upload
+          </button>
+        </div>
+      </div>
 
-<p class="hint">
-1) Upload image → 2) Click coin edges → 3) Threshold → 4) Calculate
-</p>
+      <!-- Camera mode -->
+      <div id="cameraMode">
+        <div class="row">
+          <button id="btnStartCam" class="btn btn-primary" type="button">
+            <span class="icon">▶️</span> Start Camera
+          </button>
+          <button id="btnCapture" class="btn btn-ghost" type="button" disabled>
+            <span class="icon">📸</span> Capture to Process
+          </button>
+        </div>
 
-<div class="canvas-wrap">
-<canvas id="canvas"></canvas>
-</div>
+        <div class="row">
+          <div class="chip-group">
+            <div class="chip active" data-setup="30_18">30 cm / 18 cm</div>
+            <div class="chip" data-setup="24_12">24 cm / 12 cm</div>
+            <div class="chip" data-setup="36_18">36 cm / 18 cm</div>
+          </div>
+        </div>
 
-<div class="controls">
-<button id="setScale">Set Scale (Coin)</button>
-<button id="threshold">Apply Threshold</button>
-<button id="calculate">Calculate Drape</button>
-</div>
+        <div class="camera-shell">
+          <video id="video" playsinline></video>
+          <div class="overlay">
+            <div class="target-circle"></div>
+            <div class="overlay-tip">
+              Align the support disk inside the dashed circle.
+            </div>
+          </div>
+        </div>
 
-<div class="results">
-<p>Pixel → cm ratio: <span id="scale">--</span></p>
-<p>Projected Area (cm²): <span id="area">--</span></p>
-<p>Drape Coefficient (%): <span id="drape">--</span></p>
-</div>
+        <div class="status" id="cameraStatus"></div>
+      </div>
 
-</div>
+      <!-- Upload mode -->
+      <div id="uploadMode" style="display:none;">
+        <div class="row">
+          <button id="btnPickImage" class="btn btn-primary" type="button">
+            <span class="icon">📂</span> Choose Image
+          </button>
+          <input id="uploadInput" type="file" accept="image/*" />
+        </div>
+        <div class="note">
+          Use top‑view drape photos similar to Cusick shadow images (background + projected drape).[web:14][web:24]
+        </div>
+      </div>
 
-<script src="script.js"></script>
+      <!-- Hidden canvas for capture -->
+      <canvas id="hiddenCanvas" style="display:none;"></canvas>
+
+      <div style="margin-top:10px;">
+        <div class="panel-header">
+          <div class="panel-title" style="font-size:0.95rem;">Measurement setup</div>
+          <div class="panel-tag">Step 2</div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="supportDiameter">Support disk diameter (cm)</label>
+            <input type="number" id="supportDiameter" value="18" step="0.1" />
+          </div>
+          <div class="field">
+            <label for="fabricDiameter">Fabric sample diameter (cm)</label>
+            <input type="number" id="fabricDiameter" value="30" step="0.1" />
+          </div>
+        </div>
+        <div class="note">
+          Drape coefficient is calculated as shadow area of draped fabric divided by full sample area.[web:11][web:14]
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Processing & Results -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Process & Result</div>
+          <div style="font-size:0.75rem;color:var(--muted);">
+            Tune threshold so the draped region is filled in green.
+          </div>
+        </div>
+        <div class="panel-tag">Step 3</div>
+      </div>
+
+      <div class="preview-shell">
+        <div class="preview-header">
+          <span class="label">Current frame</span>
+          <span class="badge-soft">Shadow: orange | Draped fabric: green</span>
+        </div>
+        <canvas id="canvas"></canvas>
+        <div class="slider-row">
+          <span>Threshold</span>
+          <input type="range" id="thresholdSlider" min="0" max="255" value="120" />
+          <span id="thresholdValue">120</span>
+        </div>
+        <div class="legend">
+          <span><span class="dot dot-bg"></span> Background / support</span>
+          <span><span class="dot dot-fg"></span> Draped fabric projection</span>
+        </div>
+        <div class="note">
+          If background lighting changes, adjust threshold until only the draped area is highlighted.[web:15][web:24]
+        </div>
+      </div>
+
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="btnCompute" class="btn btn-primary" type="button">
+          <span class="icon">✅</span> Compute Drape %
+        </button>
+        <button id="btnClearFrame" class="btn btn-ghost" type="button">
+          <span class="icon">♻️</span> Clear Frame
+        </button>
+      </div>
+
+      <div class="result-badge" id="resultBox" style="display:none;">
+        <div>
+          <div style="font-size:0.8rem;color:var(--muted);">Drape coefficient</div>
+          <div class="result-main" id="resultValue">– %</div>
+        </div>
+        <div>
+          <div class="badge-chip" id="resultClass">—</div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-top:4px;">
+            Range reference: &lt; 30% limp, 30–70% medium, &gt; 70% stiff (for 30 cm sample).[web:13][web:23]
+          </div>
+        </div>
+      </div>
+
+      <div class="status" id="processStatus"></div>
+
+      <div class="history">
+        <div class="history-header">
+          <span>Recent measurements</span>
+          <div>
+            <button id="btnExportCsv" class="btn btn-ghost" type="button" style="padding:4px 8px;font-size:0.72rem;">
+              ⬇️ Export CSV
+            </button>
+            <button id="btnClearHistory" class="btn btn-danger" type="button" style="padding:4px 8px;font-size:0.72rem;">
+              🗑 Clear
+            </button>
+          </div>
+        </div>
+        <div class="history-list" id="historyList">
+          <!-- Filled dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let video = null;
+    let hiddenCanvas = null;
+    let hiddenCtx = null;
+    let displayCanvas = null;
+    let displayCtx = null;
+    let currentImageMat = null; // cv.Mat of current frame
+    let currentBinaryMat = null;
+    let history = [];
+    let stream = null;
+    let openCvReady = false;
+
+    function onOpenCvReady() {
+      openCvReady = true;
+      console.log("OpenCV.js ready");
+    }
+
+    function setStatus(id, msg, isError = false) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = msg || "";
+      el.classList.toggle("error", !!isError);
+    }
+
+    function classifyDrape(dc) {
+      if (dc < 30) return "Limp fabric";
+      if (dc < 70) return "Medium drape";
+      return "Stiff fabric";
+    }
+
+    function updateResult(dc) {
+      const box = document.getElementById("resultBox");
+      const val = document.getElementById("resultValue");
+      const cls = document.getElementById("resultClass");
+      box.style.display = "flex";
+      val.textContent = dc.toFixed(2) + " %";
+      cls.textContent = classifyDrape(dc);
+    }
+
+    function addToHistory(dc, supportD, fabricD) {
+      const item = {
+        dc,
+        supportD,
+        fabricD,
+        ts: new Date().toLocaleTimeString()
+      };
+      history.unshift(item);
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const list = document.getElementById("historyList");
+      list.innerHTML = "";
+      if (!history.length) {
+        const empty = document.createElement("div");
+        empty.className = "history-item";
+        empty.innerHTML = '<span class="history-item-sub">No measurements yet.</span>';
+        list.appendChild(empty);
+        return;
+      }
+      history.slice(0, 25).forEach(h => {
+        const row = document.createElement("div");
+        row.className = "history-item";
+        row.innerHTML = `
+          <div>
+            <div class="history-item-main">${h.dc.toFixed(2)} %</div>
+            <div class="history-item-sub">Support: ${h.supportD} cm · Fabric: ${h.fabricD} cm</div>
+          </div>
+          <div class="history-item-sub" style="text-align:right;">
+            <div class="badge-soft">${h.ts}</div>
+          </div>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    function exportCsv() {
+      if (!history.length) {
+        alert("No data to export.");
+        return;
+      }
+      const lines = ["time,support_d_cm,fabric_d_cm,drape_percent"];
+      history.slice().reverse().forEach(h => {
+        lines.push(`${h.ts},${h.supportD},${h.fabricD},${h.dc.toFixed(2)}`);
+      });
+      const blob = new Blob([lines.join("\\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "drape_measurements.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function clearHistory() {
+      if (!confirm("Clear all measurements?")) return;
+      history = [];
+      renderHistory();
+    }
+
+    async function startCamera() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setStatus("cameraStatus", "Camera API not supported in this browser.", true);
+        return;
+      }
+      try {
+        if (stream) {
+          stream.getTracks().forEach(t => t.stop());
+        }
+        const constraints = {
+          video: {
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        };
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        await video.play();
+        document.getElementById("btnCapture").disabled = false;
+        setStatus("cameraStatus", "Camera ready. Align the setup and press \"Capture to Process\".");
+      } catch (err) {
+        console.error(err);
+        setStatus("cameraStatus", "Cannot access camera: " + err.message, true);
+        alert("Unable to access camera. Check permissions and reload.");
+      }
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      document.getElementById("btnCapture").disabled = true;
+    }
+
+    function captureFrameFromVideo() {
+      if (!video || video.readyState < 2) {
+        setStatus("cameraStatus", "Camera not ready.", true);
+        return;
+      }
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (!vw || !vh) {
+        setStatus("cameraStatus", "Camera dimensions not available.", true);
+        return;
+      }
+      hiddenCanvas.width = vw;
+      hiddenCanvas.height = vh;
+      hiddenCtx.save();
+      hiddenCtx.translate(vw, 0);
+      hiddenCtx.scale(-1, 1); // un-mirror when capturing
+      hiddenCtx.drawImage(video, 0, 0, vw, vh);
+      hiddenCtx.restore();
+      loadCurrentImageFromHidden();
+      setStatus("processStatus", "Frame captured. Adjust threshold, then press \"Compute Drape %\".");
+    }
+
+    function loadImageFromFile(file) {
+      const img = new Image();
+      img.onload = () => {
+        const maxSize = 1600;
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        if (w > maxSize || h > maxSize) {
+          const scale = Math.min(maxSize / w, maxSize / h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+        hiddenCanvas.width = w;
+        hiddenCanvas.height = h;
+        hiddenCtx.drawImage(img, 0, 0, w, h);
+        loadCurrentImageFromHidden();
+        setStatus("processStatus", "Image loaded. Adjust threshold and compute.");
+      };
+      img.onerror = () => {
+        setStatus("processStatus", "Could not load image.", true);
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    function loadCurrentImageFromHidden() {
+      if (!openCvReady) {
+        alert("OpenCV is not ready yet. Wait a moment and try again.");
+        return;
+      }
+      if (currentImageMat) currentImageMat.delete();
+      if (currentBinaryMat) currentBinaryMat.delete();
+
+      const w = hiddenCanvas.width;
+      const h = hiddenCanvas.height;
+      if (!w || !h) return;
+
+      displayCanvas.width = w;
+      displayCanvas.height = h;
+      displayCtx.drawImage(hiddenCanvas, 0, 0);
+
+      const src = new cv.Mat(h, w, cv.CV_8UC4);
+      const imgData = displayCtx.getImageData(0, 0, w, h);
+      src.data.set(imgData.data);
+      currentImageMat = src;
+
+      applyThresholdAndRender();
+    }
+
+    function applyThresholdAndRender() {
+      if (!currentImageMat || !openCvReady) return;
+      const thr = parseInt(document.getElementById("thresholdSlider").value, 10);
+
+      const src = currentImageMat;
+      const w = src.cols;
+      const h = src.rows;
+
+      if (currentBinaryMat) currentBinaryMat.delete();
+      const gray = new cv.Mat();
+      const blur = new cv.Mat();
+      const binary = new cv.Mat();
+
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0, 0);
+      cv.threshold(blur, binary, thr, 255, cv.THRESH_BINARY_INV);
+
+      displayCtx.putImageData(new ImageData(new Uint8ClampedArray(src.data), w, h), 0, 0);
+      const contours = new cv.MatVector();
+      const hierarchy = new cv.Mat();
+      cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+      let maxArea = 0;
+      let maxIdx = -1;
+      for (let i = 0; i < contours.size(); i++) {
+        const cnt = contours.get(i);
+        const area = cv.contourArea(cnt);
+        if (area > maxArea) {
+          maxArea = area;
+          maxIdx = i;
+        }
+        cnt.delete();
+      }
+
+      displayCtx.globalAlpha = 0.4;
+      displayCtx.fillStyle = "rgba(249,115,22,0.85)";
+      displayCtx.fillRect(0, 0, w, h);
+      displayCtx.globalAlpha = 1.0;
+
+      if (maxIdx >= 0) {
+        const drapeMask = cv.Mat.zeros(h, w, cv.CV_8UC1);
+        const selContour = contours.get(maxIdx);
+        const pts = new cv.MatVector();
+        pts.push_back(selContour);
+        cv.drawContours(drapeMask, pts, -1, new cv.Scalar(255, 255, 255, 255), -1);
+
+        const overlay = new cv.Mat(h, w, cv.CV_8UC4);
+        cv.cvtColor(drapeMask, overlay, cv.COLOR_GRAY2RGBA);
+        for (let i = 0; i < overlay.data.length; i += 4) {
+          if (overlay.data[i] === 255) {
+            overlay.data[i] = 34;
+            overlay.data[i + 1] = 197;
+            overlay.data[i + 2] = 94;
+            overlay.data[i + 3] = 200;
+          } else {
+            overlay.data[i + 3] = 0;
+          }
+        }
+        const baseImgData = displayCtx.getImageData(0, 0, w, h);
+        const base = baseImgData.data;
+        const ov = overlay.data;
+        for (let i = 0; i < base.length; i += 4) {
+          const alpha = ov[i + 3] / 255;
+          if (alpha > 0) {
+            base[i] = ov[i] * alpha + base[i] * (1 - alpha);
+            base[i + 1] = ov[i + 1] * alpha + base[i + 1] * (1 - alpha);
+            base[i + 2] = ov[i + 2] * alpha + base[i + 2] * (1 - alpha);
+          }
+        }
+        displayCtx.putImageData(baseImgData, 0, 0);
+        currentBinaryMat = drapeMask;
+        overlay.delete();
+        pts.delete();
+        selContour.delete();
+      } else {
+        currentBinaryMat = binary.clone();
+      }
+
+      document.getElementById("thresholdValue").textContent = thr;
+      contours.delete();
+      hierarchy.delete();
+      gray.delete();
+      blur.delete();
+      binary.delete();
+    }
+
+    function computeDrapeCoefficient() {
+      if (!currentBinaryMat || !currentImageMat) {
+        setStatus("processStatus", "No frame to process. Capture or upload an image first.", true);
+        return;
+      }
+
+      const thr = parseInt(document.getElementById("thresholdSlider").value, 10);
+      const w = currentBinaryMat.cols;
+      const h = currentBinaryMat.rows;
+      const binary = currentBinaryMat.clone();
+
+      const contours = new cv.MatVector();
+      const hierarchy = new cv.Mat();
+      cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+      let maxArea = 0;
+      let maxIdx = -1;
+      for (let i = 0; i < contours.size(); i++) {
+        const cnt = contours.get(i);
+        const area = cv.contourArea(cnt);
+        if (area > maxArea) {
+          maxArea = area;
+          maxIdx = i;
+        }
+        cnt.delete();
+      }
+
+      if (maxIdx < 0 || maxArea <= 0) {
+        setStatus("processStatus", "Could not detect draped region. Adjust threshold and try again.", true);
+        contours.delete();
+        hierarchy.delete();
+        binary.delete();
+        return;
+      }
+
+      const supportD = parseFloat(document.getElementById("supportDiameter").value);
+      const fabricD = parseFloat(document.getElementById("fabricDiameter").value);
+      if (!supportD || !fabricD || supportD <= 0 || fabricD <= 0) {
+        setStatus("processStatus", "Enter valid support and fabric diameters (cm).", true);
+        contours.delete();
+        hierarchy.delete();
+        binary.delete();
+        return;
+      }
+
+      const pi = Math.PI;
+      const fabricArea = pi * Math.pow(fabricD / 2, 2); // cm^2
+      const drapeCm2 = fabricArea * (maxArea / (pi * Math.pow((fabricD / 2) * (w / fabricD), 2)));
+
+      // Classical drape coefficient is projected draped area / full fabric disc area in percent.[web:11][web:14][web:24]
+      const drapePercent = (drapeCm2 / fabricArea) * 100;
+      updateResult(drapePercent);
+      addToHistory(drapePercent, supportD, fabricD);
+      setStatus(
+        "processStatus",
+        "Drape area in pixels: " + maxArea.toFixed(0) + " · Threshold: " + thr + "."
+      );
+
+      contours.delete();
+      hierarchy.delete();
+      binary.delete();
+    }
+
+    function clearFrame() {
+      if (currentImageMat) {
+        currentImageMat.delete();
+        currentImageMat = null;
+      }
+      if (currentBinaryMat) {
+        currentBinaryMat.delete();
+        currentBinaryMat = null;
+      }
+      const w = displayCanvas.width;
+      const h = displayCanvas.height;
+      displayCtx.clearRect(0, 0, w, h);
+      setStatus("processStatus", "");
+      document.getElementById("resultBox").style.display = "none";
+    }
+
+    function applySetupChip(chip) {
+      const [fabric, support] = chip.dataset.setup.split("_").map(Number);
+      document.getElementById("fabricDiameter").value = fabric;
+      document.getElementById("supportDiameter").value = support;
+      document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+    }
+
+    function switchMode(mode) {
+      const camMode = document.getElementById("cameraMode");
+      const upMode = document.getElementById("uploadMode");
+      const tabCam = document.getElementById("tabCamera");
+      const tabUp = document.getElementById("tabUpload");
+      if (mode === "camera") {
+        camMode.style.display = "";
+        upMode.style.display = "none";
+        tabCam.classList.add("active");
+        tabUp.classList.remove("active");
+      } else {
+        camMode.style.display = "none";
+        upMode.style.display = "";
+        tabCam.classList.remove("active");
+        tabUp.classList.add("active");
+        stopCamera();
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      video = document.getElementById("video");
+      hiddenCanvas = document.getElementById("hiddenCanvas");
+      hiddenCtx = hiddenCanvas.getContext("2d");
+      displayCanvas = document.getElementById("canvas");
+      displayCtx = displayCanvas.getContext("2d");
+
+      document.getElementById("btnStartCam").addEventListener("click", startCamera);
+      document.getElementById("btnCapture").addEventListener("click", captureFrameFromVideo);
+      document.getElementById("btnCompute").addEventListener("click", computeDrapeCoefficient);
+      document.getElementById("btnClearFrame").addEventListener("click", clearFrame);
+
+      document.getElementById("thresholdSlider").addEventListener("input", () => {
+        applyThresholdAndRender();
+      });
+
+      document.querySelectorAll(".chip").forEach(chip => {
+        chip.addEventListener("click", () => applySetupChip(chip));
+      });
+
+      document.getElementById("tabCamera").addEventListener("click", () => switchMode("camera"));
+      document.getElementById("tabUpload").addEventListener("click", () => switchMode("upload"));
+
+      document.getElementById("btnPickImage").addEventListener("click", () => {
+        document.getElementById("uploadInput").click();
+      });
+
+      document.getElementById("uploadInput").addEventListener("change", e => {
+        if (e.target.files && e.target.files[0]) {
+          loadImageFromFile(e.target.files[0]);
+        }
+      });
+
+      document.getElementById("btnExportCsv").addEventListener("click", exportCsv);
+      document.getElementById("btnClearHistory").addEventListener("click", clearHistory);
+
+      renderHistory();
+    });
+
+    window.addEventListener("beforeunload", () => {
+      stopCamera();
+      if (currentImageMat) currentImageMat.delete();
+      if (currentBinaryMat) currentBinaryMat.delete();
+    });
+  </script>
 </body>
 </html>
