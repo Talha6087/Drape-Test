@@ -6,34 +6,47 @@
     <title>Drape Analysis Tool</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .canvas-container { margin: 0 auto !important; } /* Center the fabric canvas */
+    </style>
 </head>
-<body class="bg-gray-100 p-8">
+<body class="bg-gray-100 p-4 md:p-8">
 
-    <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md">
-        <h1 class="text-2xl font-bold mb-4 text-center">Drape % Calculator</h1>
+    <div class="max-w-5xl mx-auto bg-white p-6 rounded-xl shadow-lg">
+        <h1 class="text-2xl font-bold mb-2 text-center text-gray-800">Drape Coefficient Analyzer</h1>
+        <p class="text-center text-sm text-gray-500 mb-6">Upload top-down view of fabric drape</p>
         
-        <div class="flex flex-wrap gap-4 mb-6 justify-center bg-gray-50 p-4 rounded-lg">
-            <input type="file" id="upload" accept="image/*" class="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+        <div class="flex flex-wrap gap-4 mb-6 justify-center bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <div class="flex flex-col">
+                <label class="text-xs font-bold uppercase text-gray-600 mb-1">1. Select Photo</label>
+                <input type="file" id="upload" accept="image/*" class="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700 pointer-cursor"/>
+            </div>
             
-            <div class="flex items-center gap-2">
-                <label class="text-sm font-medium">Coin Dia (mm):</label>
-                <input type="number" id="coinSize" value="24.26" class="w-20 p-1 border rounded text-center">
+            <div class="flex flex-col">
+                <label class="text-xs font-bold uppercase text-gray-600 mb-1">2. Coin Dia (mm)</label>
+                <input type="number" id="coinSize" value="24.26" class="w-24 p-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
             </div>
 
-            <button onclick="calculateDrape()" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition">Calculate Drape %</button>
+            <div class="flex items-end">
+                <button onclick="calculateDrape()" class="bg-green-600 text-white px-8 py-2 rounded-md font-bold hover:bg-green-700 shadow-md transition-all active:scale-95">
+                    Calculate Drape %
+                </button>
+            </div>
         </div>
 
-        <div class="relative flex justify-center border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-200" style="min-height: 500px;">
+        <div class="relative flex justify-center border-4 border-double border-gray-200 rounded-xl overflow-auto bg-slate-50 shadow-inner" style="height: 600px;">
             <canvas id="canvas"></canvas>
         </div>
 
-        <div id="results" class="mt-6 p-4 bg-blue-50 rounded-lg hidden text-center">
-            <p class="text-lg">Drape Coefficient: <span id="drapeVal" class="font-bold text-blue-800">0</span>%</p>
-            <p class="text-sm text-gray-600 mt-1">Calculated based on pixel-to-mm ratio of the reference coin.</p>
-        </div>
-
-        <div class="mt-4 text-xs text-gray-500 italic">
-            Instructions: 1. Upload Image. 2. Move/Resize the <strong class="text-yellow-600">Yellow Circle</strong> over the coin. 3. Move/Resize the <strong class="text-blue-600">Blue Circle</strong> over the draped fabric.
+        <div id="results" class="mt-6 p-6 bg-gray-900 text-white rounded-xl hidden flex justify-around items-center animate-pulse">
+            <div>
+                <p class="text-gray-400 text-xs uppercase tracking-widest">Drape Coefficient</p>
+                <p class="text-4xl font-black text-green-400"><span id="drapeVal">0</span>%</p>
+            </div>
+            <div class="text-right border-l border-gray-700 pl-6">
+                <p class="text-xs text-gray-400 italic">Reference Scale:</p>
+                <p id="pxRatio" class="text-sm font-mono text-blue-300">0 px/mm</p>
+            </div>
         </div>
     </div>
 
@@ -41,43 +54,59 @@
         const canvas = new fabric.Canvas('canvas');
         let coinCircle, drapeCircle;
 
-        // 1. Handle Image Upload
+        // --- IMAGE UPLOAD LOGIC ---
         document.getElementById('upload').addEventListener('change', function(e) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const imgObj = new Image();
-                imgObj.src = event.target.result;
-                imgObj.onload = function() {
-                    const image = new fabric.Image(imgObj);
-                    
-                    // Scale image to fit screen
-                    image.scaleToWidth(800);
-                    canvas.setWidth(image.getScaledWidth());
-                    canvas.setHeight(image.getScaledHeight());
-                    canvas.setBackgroundImage(image, canvas.renderAll.bind(canvas));
+            const file = e.target.files[0];
+            if (!file) return;
 
+            const reader = new FileReader();
+            reader.onload = function(f) {
+                const data = f.target.result;
+                
+                fabric.Image.fromURL(data, function(img) {
+                    // Reset canvas
+                    canvas.clear();
+
+                    // Scalability: fit image to 800px width
+                    const maxWidth = 800;
+                    const scale = maxWidth / img.width;
+                    
+                    img.set({
+                        scaleX: scale,
+                        scaleY: scale,
+                        selectable: false,
+                        evented: false
+                    });
+
+                    // Set canvas size to match scaled image
+                    canvas.setDimensions({
+                        width: img.getScaledWidth(),
+                        height: img.getScaledHeight()
+                    });
+
+                    canvas.add(img);
+                    canvas.sendToBack(img);
+                    
                     addOverlays();
-                }
-            }
-            reader.readAsDataURL(e.target.files[0]);
+                    canvas.renderAll(); // Forced refresh
+                });
+            };
+            reader.readAsDataURL(file);
         });
 
-        // 2. Add Reference and Drape Circles
         function addOverlays() {
-            canvas.clear();
-            
-            // Reference Coin Circle (Yellow)
+            // Reference Coin Circle (Yellow) - Use for mm scaling
             coinCircle = new fabric.Circle({
-                radius: 40, fill: 'rgba(255, 255, 0, 0.3)', 
-                stroke: 'yellow', strokeWidth: 2, left: 50, top: 50,
-                cornerColor: 'yellow', hasRotatingPoint: false
+                radius: 30, fill: 'transparent', 
+                stroke: '#fbbf24', strokeWidth: 4, 
+                left: 40, top: 40, cornerColor: '#fbbf24'
             });
 
-            // Drape Measurement Circle (Blue)
+            // Drape Circle (Blue) - Use to outline the fabric shadow
             drapeCircle = new fabric.Circle({
-                radius: 100, fill: 'rgba(0, 0, 255, 0.2)', 
-                stroke: 'blue', strokeWidth: 2, left: 150, top: 150,
-                cornerColor: 'blue', hasRotatingPoint: false
+                radius: 80, fill: 'rgba(59, 130, 246, 0.3)', 
+                stroke: '#2563eb', strokeWidth: 3, 
+                left: 120, top: 120, cornerColor: '#2563eb'
             });
 
             canvas.add(coinCircle);
@@ -85,35 +114,31 @@
             canvas.setActiveObject(drapeCircle);
         }
 
-        // 3. Calculation Logic
+        // --- CALCULATION LOGIC ---
         function calculateDrape() {
             if (!coinCircle || !drapeCircle) return;
 
-            const realCoinDia = parseFloat(document.getElementById('coinSize').value);
+            const realCoinDiaMm = parseFloat(document.getElementById('coinSize').value);
             
-            // Get pixel diameters (taking scaling into account)
-            const coinPixDia = coinCircle.getRadiusX() * 2 * coinCircle.scaleX;
-            const drapePixDia = drapeCircle.getRadiusX() * 2 * drapeCircle.scaleX;
+            // Get current pixel sizes based on transformations
+            const coinPixDia = coinCircle.radius * 2 * coinCircle.scaleX;
+            const drapePixDia = drapeCircle.radius * 2 * drapeCircle.scaleX;
 
-            // Ratio: 1mm = (coinPixDia / realCoinDia) pixels
-            const mmPerPixel = realCoinDia / coinPixDia;
+            // mm per pixel ratio
+            const pxPerMm = coinPixDia / realCoinDiaMm;
             
-            // Calculate Areas (A = πr²)
-            const drapeAreaMm2 = Math.PI * Math.pow((drapePixDia * mmPerPixel) / 2, 2);
-            
-            // In standard Drape testing, Drape % = (Area of Drape / Area of Original Flat Fabric) * 100
-            // Here we assume the "drapeCircle" you selected is the shadow/projected area
-            // You can refine this logic if you have a known original template size
-            
-            // Example Logic: Drape Coefficient (DC)
-            // Typically: DC = (As - Ac) / (Ad - Ac) 
-            // Where As = Shadow Area, Ac = Coin/Pedestal Area, Ad = Total Disk Area
-            
-            // For this simple tool, we'll output the relative area ratio
-            const drapePercentage = ((drapePixDia / canvas.width) * 100).toFixed(2); 
+            // Calculate Area Ratio
+            // Simple Drape % = (Area of Drape Shadow / Total Potential Area)
+            // Note: For a true lab Drape Coefficient, you'd divide by the original flat fabric area.
+            // Here, we provide the relative diameter ratio as a starting point.
+            const drapeResult = (Math.pow(drapePixDia / canvas.width, 2) * 100).toFixed(2);
 
+            // Update UI
             document.getElementById('results').classList.remove('hidden');
-            document.getElementById('drapeVal').innerText = drapePercentage;
+            document.getElementById('drapeVal').innerText = drapeResult;
+            document.getElementById('pxRatio').innerText = pxPerMm.toFixed(2) + " px/mm";
+            
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         }
     </script>
 </body>
