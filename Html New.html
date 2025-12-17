@@ -1,149 +1,76 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drape Analyzer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        #canvasContainer { position: relative; display: inline-block; cursor: crosshair; }
-        canvas { border: 1px solid #ccc; max-width: 100%; height: auto; background: #eee; }
-        .marker { 
-            position: absolute; border-radius: 50%; border: 3px solid; 
-            transform: translate(-50%, -50%); pointer-events: none; 
-        }
-    </style>
-</head>
-<body class="bg-slate-100 p-4 font-sans">
+<script>
+const canvas = new fabric.Canvas('canvas', {
+    preserveObjectStacking: true,
+    selection: false
+});
 
-    <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-lg">
-        <h1 class="text-xl font-bold mb-4 text-slate-800">Fabric Drape Calculator</h1>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-slate-50 p-4 rounded-lg">
-            <div>
-                <label class="block text-xs font-bold mb-1 uppercase">1. Upload Image</label>
-                <input type="file" id="imageLoader" class="text-sm w-full">
-            </div>
-            <div>
-                <label class="block text-xs font-bold mb-1 uppercase">2. Reference (mm)</label>
-                <input type="number" id="coinMm" value="24.26" class="w-full p-1 border rounded">
-            </div>
-            <div class="flex items-end">
-                <button onclick="calculate()" class="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700">Calculate</button>
-            </div>
-        </div>
+let coinCircle, drapeCircle;
 
-        <div class="mb-4 text-sm text-blue-700 font-medium">
-            Step 1: Click on the image to place the <span class="text-yellow-600 font-bold">Coin Center</span>. <br>
-            Step 2: Click again to define its <span class="text-yellow-600 font-bold">Edge</span>. <br>
-            Step 3: Repeat for the <span class="text-indigo-600 font-bold">Fabric Drape</span> circle.
-        </div>
+document.getElementById('upload').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
 
-        <div id="canvasContainer">
-            <canvas id="imageCanvas"></canvas>
-            <div id="status" class="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 text-xs rounded">Waiting for upload...</div>
-        </div>
+    const reader = new FileReader();
 
-        <div id="results" class="hidden mt-6 p-4 bg-green-100 border border-green-200 rounded-lg text-center">
-            <h2 class="text-lg font-bold text-green-800">Drape Coefficient: <span id="drapeResult">0</span>%</h2>
-            <p id="details" class="text-xs text-green-700 mt-1"></p>
-        </div>
-    </div>
+    reader.onload = function (event) {
+        fabric.Image.fromURL(
+            event.target.result,
+            function (img) {
 
-    <script>
-        const canvas = document.getElementById('imageCanvas');
-        const ctx = canvas.getContext('2d');
-        const container = document.getElementById('canvasContainer');
-        const status = document.getElementById('status');
-        
-        let img = new Image();
-        let points = []; // Stores x, y coordinates of clicks
+                canvas.clear();
 
-        // Load Image
-        document.getElementById('imageLoader').addEventListener('change', (e) => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                img.onload = () => {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    points = [];
-                    status.innerText = "Click center of COIN";
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(e.target.files[0]);
-        });
+                const maxWidth = 800;
+                const scale = Math.min(maxWidth / img.width, 1);
 
-        // Handle Clicks
-        canvas.addEventListener('mousedown', (e) => {
-            if (!img.src) return;
+                img.set({
+                    scaleX: scale,
+                    scaleY: scale,
+                    left: 0,
+                    top: 0,
+                    selectable: false,
+                    evented: false,
+                    crossOrigin: 'anonymous'
+                });
 
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
+                canvas.setWidth(img.getScaledWidth());
+                canvas.setHeight(img.getScaledHeight());
 
-            points.push({x, y});
-            draw();
+                canvas.add(img);
+                canvas.sendToBack(img);
 
-            if (points.length === 1) status.innerText = "Click edge of COIN";
-            else if (points.length === 2) status.innerText = "Click center of FABRIC";
-            else if (points.length === 3) status.innerText = "Click edge of FABRIC";
-            else if (points.length === 4) status.innerText = "Ready to Calculate";
-        });
+                addOverlays();
+                canvas.renderAll();
+            },
+            { crossOrigin: 'anonymous' }
+        );
+    };
 
-        function draw() {
-            ctx.drawImage(img, 0, 0); // Redraw image
-            
-            // Draw Coin Circle
-            if (points.length >= 2) {
-                const r = Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y);
-                drawCircle(points[0], r, '#fbbf24');
-            }
-            // Draw Fabric Circle
-            if (points.length >= 4) {
-                const r = Math.hypot(points[3].x - points[2].x, points[3].y - points[2].y);
-                drawCircle(points[2], r, '#4f46e5');
-            }
-            
-            // Draw points
-            points.forEach(p => {
-                ctx.fillStyle = 'red';
-                ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI*2); ctx.fill();
-            });
-        }
+    reader.readAsDataURL(file);
+});
 
-        function drawCircle(center, r, color) {
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.arc(center.x, center.y, r, 0, Math.PI*2);
-            ctx.stroke();
-        }
+function addOverlays() {
+    coinCircle = new fabric.Circle({
+        radius: 30,
+        left: 40,
+        top: 40,
+        fill: 'transparent',
+        stroke: '#fbbf24',
+        strokeWidth: 4,
+        hasControls: true
+    });
 
-        function calculate() {
-            if (points.length < 4) {
-                alert("Please click 4 times: Coin (Center & Edge) and Fabric (Center & Edge)");
-                return;
-            }
+    drapeCircle = new fabric.Circle({
+        radius: 80,
+        left: 150,
+        top: 150,
+        fill: 'rgba(59,130,246,0.3)',
+        stroke: '#2563eb',
+        strokeWidth: 3,
+        hasControls: true
+    });
 
-            const coinPx = Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y);
-            const fabricPx = Math.hypot(points[3].x - points[2].x, points[3].y - points[2].y);
-            
-            const mmPerPx = (document.getElementById('coinMm').value / 2) / coinPx;
-            const fabricRadiusMm = fabricPx * mmPerPx;
-            
-            // Standard Drape Calculation logic
-            // Area = πr². Drape % = (Projected Area / Original Area)
-            // For simplicity, we are showing the radius ratio squared.
-            const drapeRatio = Math.pow(fabricPx / coinPx, 2) * 10; // Normalized example
-
-            document.getElementById('results').classList.remove('hidden');
-            document.getElementById('drapeResult').innerText = drapeRatio.toFixed(2);
-            document.getElementById('details').innerText = `Fabric Radius: ${fabricRadiusMm.toFixed(2)}mm`;
-        }
-    </script>
-</body>
-</html>
+    canvas.add(coinCircle);
+    canvas.add(drapeCircle);
+    canvas.setActiveObject(drapeCircle);
+}
+</script>
